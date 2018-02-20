@@ -62,6 +62,9 @@ int main(int argc, char *argv[])
         if (n < 0)
             error("ERROR reading from socket");
 
+        if(strcmp("EOT", inbuffer) == 0) {
+            break;
+        }
         printf("%s\n",inbuffer);
     }                          // and dump out what you received
     close(sockfd);                                    // close the socket

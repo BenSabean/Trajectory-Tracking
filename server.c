@@ -12,6 +12,7 @@
 #define BUFFSIZE 256
 #define GRAVITY 9.81 
 #define TIMESTEP 0.1
+#define EOT "EOT"
 
 void error(const char *msg) {
     perror(msg);
@@ -40,7 +41,7 @@ void *Trajectory(int *newsockfd) {
     printf("Angle: [%lf]\n", angle);         // and dump it to string
 
     double x = 0.0;     // X position of projectile
-    double vy = thrust; // Velovity initialized to initial veleocity
+    double vy = thrust; // Velovity initialized to initial velocity
     double y = 0.0;     // Y position of projectile
     double xo = 0.0;    // Previous x position 
     double vi = 0.0;    // Previous velocity in y direction
@@ -51,8 +52,8 @@ void *Trajectory(int *newsockfd) {
         vi = vy;
         yo = y;
 
-        x = xo + (thrust * cos(angle) * TIMESTEP);
-        vy = (vi * sin(angle)) - (GRAVITY * TIMESTEP);
+        x = xo + (thrust * cos((angle * M_PI) / 180.0f) * TIMESTEP);
+        vy = (vi * sin((angle * M_PI) / 180.0f)) - (GRAVITY * TIMESTEP);
         y = yo + (vy * TIMESTEP);
 
         sprintf(outbuffer, "%lf  %lf", x, y); 
@@ -63,6 +64,11 @@ void *Trajectory(int *newsockfd) {
         printf("Sent    : [%s]\n",outbuffer);
         usleep(1000);
     } while(y > 0);
+    // Tell client it's the end of transmission
+    n = write(*newsockfd,EOT,strlen(outbuffer+1));
+    if (n < 0)
+        error("ERROR writing to socket");
+    printf("Sent    : [%s]\n",outbuffer);
 
 printf("Exiting Thread\n");
 //close(*newsockfd); 

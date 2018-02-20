@@ -7,8 +7,11 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <math.h>
 
 #define BUFFSIZE 256
+#define GRAVITY 9.81 
+#define TIMESTEP 0.1
 
 void error(const char *msg) {
     perror(msg);
@@ -20,23 +23,46 @@ void *Trajectory(int *newsockfd) {
     int n = 0;
     char inbuffer[BUFFSIZE];
     char outbuffer[BUFFSIZE];
+    double thrust = 0.0;
+    double angle = 0.0;
 
     bzero(inbuffer, BUFFSIZE);
     bzero(outbuffer, BUFFSIZE);
-    sprintf(outbuffer, "World\n"); 
 
     printf("Client Successfully connected,\n");
-
 
     n = read(*newsockfd,inbuffer,BUFFSIZE-1);   // get the string sent from the client
     if (n < 0)
         error("ERROR reading from socket");
-    printf("Received: [%s]\n",inbuffer);         // and dump it to string
 
-    n = write(*newsockfd,outbuffer,strlen(outbuffer+1)); // then send it back
-    if (n < 0)
-        error("ERROR writing to socket");
-    printf("Sent    : [%s]\n",outbuffer);
+    sscanf(inbuffer, "%lf %lf\n", &thrust, &angle);
+    printf("Thrust: [%lf]\n", thrust);         // and dump it to string
+    printf("Angle: [%lf]\n", angle);         // and dump it to string
+
+    double x = 0.0;     // X position of projectile
+    double vy = thrust; // Velovity initialized to initial veleocity
+    double y = 0.0;     // Y position of projectile
+    double xo = 0.0;    // Previous x position 
+    double vi = 0.0;    // Previous velocity in y direction
+    double yo = 0.0;    // Previous y position
+
+    do {
+        xo = x; 
+        vi = vy;
+        yo = y;
+
+        x = xo + (thrust * cos(angle) * TIMESTEP);
+        vy = (vi * sin(angle)) - (GRAVITY * TIMESTEP);
+        y = yo + (vy * TIMESTEP);
+
+        sprintf(outbuffer, "%lf  %lf", x, y); 
+
+        n = write(*newsockfd,outbuffer,strlen(outbuffer+1)); // then send it back
+        if (n < 0)
+            error("ERROR writing to socket");
+        printf("Sent    : [%s]\n",outbuffer);
+        usleep(1000);
+    } while(y > 0);
 
 printf("Exiting Thread\n");
 //close(*newsockfd); 
@@ -56,7 +82,6 @@ int main(int argc, char *argv[]) {
  
     if (argc < 2) {
         error("ERROR, no port provided\n");
-        return EXIT_FAILURE;
     }
 
     memset(&cli_hints, 0, sizeof cli_hints);
@@ -72,12 +97,10 @@ int main(int argc, char *argv[]) {
     sockfd = socket(cli_res->ai_family, cli_res->ai_socktype, cli_res->ai_protocol); 
     if (sockfd < 0) {                                                     
         error("ERROR opening socket");
-        return EXIT_FAILURE;
     }
     
     if (bind(sockfd, cli_res->ai_addr, cli_res->ai_addrlen) < 0) {
-        error("ERROR on binding");
-        return EXIT_FAILURE;  
+        error("ERROR on binding"); 
     }    
     while(1) {
         listen(sockfd,5);     // block and wait for a new connection from a client
@@ -87,7 +110,6 @@ int main(int argc, char *argv[]) {
 
         if (newsockfd < 0) {
             error("ERROR on accept");
-            return EXIT_FAILURE;
         }
 
         // this variable is our reference to the second thread 
@@ -96,7 +118,6 @@ int main(int argc, char *argv[]) {
         // create a second thread
         if(pthread_create(&inc_x_thread, NULL, (void *)Trajectory, &newsockfd)) {
             error("Error creating thread");
-            return EXIT_FAILURE;
         }
     }
   

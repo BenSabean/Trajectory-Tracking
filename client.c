@@ -55,11 +55,13 @@ int main(int argc, char *argv[])
     if (n < 0)
         error("ERROR writing to socket");
 
+    while(1) {
     n = read(sockfd,inbuffer,255);                    // get the response
-    if (n < 0)
-        error("ERROR reading from socket");
+        if (n < 0)
+            error("ERROR reading from socket");
 
-    printf("%s\n",inbuffer);                          // and dump out what you received
+        printf("%s\n",inbuffer);
+    }                          // and dump out what you received
     close(sockfd);                                    // close the socket
     return EXIT_SUCCESS;
 }

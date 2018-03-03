@@ -2,21 +2,24 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 
 #define BUFFSIZE 256
+const char *DELIM = ",";
 
-void error(const char *msg)
-{
+void error(const char *msg) {
+
     perror(msg);
     exit(0);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
+
+    // Socket variables and initialization 
     int sockfd, portno, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -25,6 +28,13 @@ int main(int argc, char *argv[])
     bzero(outbuffer,BUFFSIZE);
     bzero(inbuffer,BUFFSIZE);
     bzero((char *) &serv_addr, sizeof(serv_addr));
+
+    // Variables for extracting modeled trajectory
+    double xpos[BUFFSIZE];  // Modeled x position
+    double ypos[BUFFSIZE];  // Modeled y position
+    bool eot = false;    // End of transmission flag
+    char *cur;
+    int i = 0;
 
     if (argc < 3) {
        fprintf(stderr,"usage %s hostname port\n", argv[0]);
@@ -58,15 +68,33 @@ int main(int argc, char *argv[])
         error("ERROR writing to socket");
 
     while(1) {
-    n = read(sockfd,inbuffer,BUFFSIZE-1);                    // get the response
+    n = read(sockfd,inbuffer,BUFFSIZE);                    // get the response
         if (n < 0)
             error("ERROR reading from socket");
 
-        if(strcmp("EOT", inbuffer) == 0) {
+        cur = strtok(inbuffer, DELIM);
+
+        while(cur != NULL) {   
+            if(strcmp("EOT", cur) == 0) {
+                eot = true;
+                break;
+            }
+            if(i == 0) {
+                printf("    X\t    Y\n");
+            }
+            xpos[++i] = atof(cur);
+            cur = strtok(NULL, DELIM);
+            if(cur == NULL) {
+                break;
+            }
+            ypos[i] = atof(cur);
+            printf("%lf %lf\n", xpos[i], ypos[i]);
+            cur = strtok(NULL, DELIM);
+        }
+        if(eot) {
             break;
         }
-        printf("%s\n",inbuffer);
-    }                          // and dump out what you received
-    close(sockfd);                                    // close the socket
+    }                          
+    close(sockfd);     // close the socket
     return EXIT_SUCCESS;
 }

@@ -9,10 +9,11 @@
 #include <pthread.h>
 #include <math.h>
 
-#define BUFFSIZE 256
-#define GRAVITY 9.81 
-#define TIMESTEP 0.1
-#define EOT "EOT"
+#define BUFFSIZE 512   // Buffer size
+#define MAXCLIENTS 256 // Maximum number of clients that can connect to the server
+#define GRAVITY 9.81   // Acceleration due to gravity in meters per second
+#define TIMESTEP 0.1   // 100 milliseconds
+#define EOT "EOT,"      // End of transmission signal
 
 void error(const char *msg) {
     perror(msg);
@@ -56,26 +57,25 @@ void *Trajectory(int *newsockfd) {
         vy = (vi * sin((angle * M_PI) / 180.0f)) - (GRAVITY * TIMESTEP);
         y = yo + (vy * TIMESTEP);
 
-        sprintf(outbuffer, "%lf  %lf", x, y); 
+        sprintf(outbuffer, "%lf,%lf,", x, y);
 
-        n = write(*newsockfd,outbuffer,strlen(outbuffer+1)); // then send it back
+        n = write(*newsockfd,outbuffer,strlen(outbuffer));
         if (n < 0)
             error("ERROR writing to socket");
         printf("Sent    : [%s]\n",outbuffer);
-        usleep(1000);
+        //usleep(100000);
     } while(y > 0);
+
     // Tell client it's the end of transmission
-    n = write(*newsockfd,EOT,strlen(outbuffer+1));
+    n = write(*newsockfd, EOT, strlen(outbuffer));
     if (n < 0)
         error("ERROR writing to socket");
     printf("Sent    : [%s]\n",outbuffer);
 
-printf("Exiting Thread\n");
-//close(*newsockfd); 
-
-// the function must return something
-return NULL;
-
+    printf("Exiting Thread\n");
+    //close(*newsockfd); 
+    // the function must return something
+    return NULL;
 }
 
 int main(int argc, char *argv[]) {
@@ -108,6 +108,8 @@ int main(int argc, char *argv[]) {
     if (bind(sockfd, cli_res->ai_addr, cli_res->ai_addrlen) < 0) {
         error("ERROR on binding"); 
     }    
+
+    
     while(1) {
         listen(sockfd,5);     // block and wait for a new connection from a client
         clilen = sizeof(cli_addr);     // get address of client
@@ -119,10 +121,10 @@ int main(int argc, char *argv[]) {
         }
 
         // this variable is our reference to the second thread 
-        pthread_t inc_x_thread;
+        pthread_t cli_thread;
 
         // create a second thread
-        if(pthread_create(&inc_x_thread, NULL, (void *)Trajectory, &newsockfd)) {
+        if(pthread_create(&cli_thread, NULL, (void *)Trajectory, &newsockfd)) {
             error("Error creating thread");
         }
     }
@@ -130,5 +132,3 @@ int main(int argc, char *argv[]) {
     close(sockfd);    
     return EXIT_SUCCESS;  
 }
-
-

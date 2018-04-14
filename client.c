@@ -36,8 +36,8 @@ int main(int argc, char *argv[]) {
     char *cur;
     int i = 0;
 
-    if (argc < 3) {
-       fprintf(stderr,"usage %s hostname port\n", argv[0]);
+    if (argc < 5) {
+       fprintf(stderr,"usage %s <hostname> <port> <velocity> <angle>\n", argv[0]);
        exit(0);
     }
 
@@ -61,8 +61,9 @@ int main(int argc, char *argv[]) {
         < 0)
         error("ERROR connecting");
 
-    printf("Please enter the message: ");             // ask user for "hello"
-    fgets(outbuffer,BUFFSIZE-1,stdin);                       // and fill up the output buffer
+    printf("Velocity: %s\n",argv[3]);
+    printf("Angle: %s\n",argv[4]);
+    sprintf(outbuffer, "%s %s", argv[3], argv[4]);
     n = write(sockfd,outbuffer,strlen(outbuffer));    // then send to the server
     if (n < 0)
         error("ERROR writing to socket");
